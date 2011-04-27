@@ -49,7 +49,7 @@ Need to be properly resolved. Did you know that, unlike the `label = label` exam
 
 Anyway, ripper-plus turns all method-call `:var_ref` nodes into `zcall` nodes; the node structure is otherwise unchanged.
 
-The truth is, everybody who is using Ripper right now *should* be doing *all* of this. Anything short, and you have bugs. [Laser](https://github.com/michaeledgar/laser/) has bugs as a result. It's a pain in the ass to get it all right. `ripper-plus` probably has bugs - I'm not gonna lie. So hopefully, in Ruby 1.9.x, this will be the default. For now, you *should* use ripper-plus.
+The truth is, everybody who is using Ripper right now *should* be doing *all* of this. Anything short, and you have bugs. [Laser](https://github.com/michaeledgar/laser/) has bugs as a result. It's a pain in the ass to get it all right. `ripper-plus` probably has bugs - I'm not gonna lie, I found one while writing this. But I'm pretty damn sure it's solid. Hopefully, in Ruby 1.9.x, this will be the default. For now, you *should* use ripper-plus.
 
 ## Contributing to ripper-plus
  
