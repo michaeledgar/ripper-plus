@@ -98,6 +98,13 @@ module RipperPlus
           transform_params(param_node, scope_stack)
           transform_tree(body, scope_stack)
         end
+      when :rescue
+        list, name, body = tree[1..3]
+        transform_tree(list, scope_stack)
+        if name
+          add_variables_from_lhs(name, scope_stack)
+        end
+        transform_tree(body, scope_stack)
       when :method_add_block
         call, block = tree[1..2]
         # first transform the call
