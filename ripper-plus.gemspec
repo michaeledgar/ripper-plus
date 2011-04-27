@@ -5,7 +5,7 @@
 
 Gem::Specification.new do |s|
   s.name = %q{ripper-plus}
-  s.version = "1.0.0"
+  s.version = "1.0.1"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Michael Edgar"]
@@ -30,6 +30,7 @@ make use frustrating. This gem intends to correct them.}
     "lib/ripper-plus/ripper-plus.rb",
     "lib/ripper-plus/scope_stack.rb",
     "lib/ripper-plus/transformer.rb",
+    "ripper-plus.gemspec",
     "spec/ripper-plus_spec.rb",
     "spec/scope_stack_spec.rb",
     "spec/spec_helper.rb",
