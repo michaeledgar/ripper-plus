@@ -69,7 +69,7 @@ module RipperPlus
         end
       when :class
         superclass, body = tree[2..3]
-        transform_tree(superclass, scope_stack)  # superclass node
+        transform_tree(superclass, scope_stack) if superclass  # superclass node
         scope_stack.with_closed_scope do
           transform_tree(body, scope_stack)
         end
@@ -107,6 +107,9 @@ module RipperPlus
         scope_stack.with_open_scope do
           if block_args
             transform_params(block_args[1], scope_stack)
+            if block_args[2]
+              block_args[2].each { |var| add_variables_from_lhs(var, scope_stack) }
+            end
           end
           transform_tree(block_body, scope_stack)
         end
@@ -125,7 +128,7 @@ module RipperPlus
         scope_stack.add_variable(lhs[1])
       when Array
         lhs.each { |var| add_variables_from_lhs(var, scope_stack) }
-      when :mlhs_paren, :var_field
+      when :mlhs_paren, :var_field, :rest_param, :blockarg
         add_variables_from_lhs(lhs[1], scope_stack)
       when :mlhs_add_star
         pre_star, star, post_star = lhs[1..3]
@@ -159,23 +162,23 @@ module RipperPlus
       if param_node
         positional_1, optional, rest, positional_2, block = param_node[1..5]
         if positional_1
-          positional_1.each { |var| scope_stack.add_variable(var[1]) }
+          positional_1.each { |var| add_variables_from_lhs(var, scope_stack) }
         end
         if optional
           optional.each do |var, value|
             # MUST walk value first. (def foo(y=y); end) == (def foo(y=y()); end)
             transform_tree(value, scope_stack)
-            scope_stack.add_variable(var[1])
+            add_variables_from_lhs(var, scope_stack)
           end
         end
         if rest && rest[1]
-          scope_stack.add_variable(rest[1][1])
+          add_variables_from_lhs(rest, scope_stack)
         end
         if positional_2
-          positional_2.each { |var| scope_stack.add_variable(var[1]) }
+          positional_2.each { |var| add_variables_from_lhs(var, scope_stack) }
         end
         if block
-          scope_stack.add_variable(block[1][1])
+          add_variables_from_lhs(block, scope_stack)
         end
       end
     end
