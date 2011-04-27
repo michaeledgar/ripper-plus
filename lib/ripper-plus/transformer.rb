@@ -54,14 +54,15 @@ module RipperPlus
     # Transforms the given tree into a RipperPlus AST.
     def transform_tree(tree, scope_stack)
       case tree[0]
-      when :assign
-        lhs = tree[1]
-        rhs = tree[2]
-        # add local if lhs is local. LHS will be [:var_field, [:@ident, ...]]
-        if lhs[0] == :var_field && lhs[1][0] == :@ident
-          scope_stack.add_variable(lhs[1][1])
-        end
+      when :assign, :massign
+        lhs, rhs = tree[1..2]
+        add_variables_from_lhs(lhs, scope_stack)
         transform_tree(rhs, scope_stack)
+      when :for
+        vars, iterated, body = tree[1..3]
+        add_variables_from_lhs(vars, scope_stack)
+        transform_tree(iterated, scope_stack)
+        transform_tree(body, scope_stack)
       when :var_ref
         if tree[1][0] == :@ident && !scope_stack.has_variable?(tree[1][1])
           tree[0] = :zcall
@@ -115,6 +116,26 @@ module RipperPlus
         transform_tree(tree[1], scope_stack)
       else
         transform_in_order(tree, scope_stack)
+      end
+    end
+
+    def add_variables_from_lhs(lhs, scope_stack)
+      case lhs[0]
+      when :@ident
+        scope_stack.add_variable(lhs[1])
+      when Array
+        lhs.each { |var| add_variables_from_lhs(var, scope_stack) }
+      when :mlhs_paren, :var_field
+        add_variables_from_lhs(lhs[1], scope_stack)
+      when :mlhs_add_star
+        pre_star, star, post_star = lhs[1..3]
+        pre_star.each { |var| add_variables_from_lhs(var, scope_stack) }
+        if star
+          add_variables_from_lhs(star, scope_stack)
+        end
+        if post_star
+          post_star.each { |var| add_variables_from_lhs(var, scope_stack) }
+        end
       end
     end
 

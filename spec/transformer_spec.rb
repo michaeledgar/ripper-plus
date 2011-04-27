@@ -26,7 +26,7 @@ describe RipperPlus::Transformer do
             [:var_field, [:@ident, "y", [1, 15]]],
             [:var_ref, [:@ident, "x", [1, 19]]]]],
           nil, nil, nil]]]]
-    RipperPlus::Transformer.transform(input_tree).should == output_tree
+    input_tree.should transform_to(output_tree)
   end
 
   it 'should respect argument order in method definitions' do
@@ -56,7 +56,7 @@ describe RipperPlus::Transformer do
            nil,
            nil]],
          [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]
-    RipperPlus::Transformer.transform(input_tree).should == output_tree
+    input_tree.should transform_to(output_tree)
   end
 
   it 'should respect argument order in block argument definitions' do
@@ -106,7 +106,7 @@ describe RipperPlus::Transformer do
               [:var_ref, [:@ident, "z", [1, 36]]],
               [:var_ref, [:@ident, "a", [1, 39]]]],
              false]]]]]]]
-    RipperPlus::Transformer.transform(input_tree).should == output_tree
+    input_tree.should transform_to(output_tree)
   end
 
   it 'should transform singleton names in singleton method definitions' do
@@ -126,7 +126,7 @@ describe RipperPlus::Transformer do
          [:@ident, "silly", [1, 8]],
          [:paren, [:params, nil, nil, nil, nil, nil]],
          [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]
-    RipperPlus::Transformer.transform(input_tree).should == output_tree
+    input_tree.should transform_to(output_tree)
   end
   
   it 'should not transform singleton names when an appropriate local variable exists' do
@@ -141,7 +141,7 @@ describe RipperPlus::Transformer do
          [:@ident, "silly", [1, 20]],
          [:params, nil, nil, nil, nil, nil],
          [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]
-    RipperPlus::Transformer.transform(input_tree).should == input_tree
+    input_tree.should transform_to(input_tree)
   end
   
   it 'does not transform the tricky x = 5 unless defined?(x) case' do
@@ -150,6 +150,100 @@ describe RipperPlus::Transformer do
        [[:unless_mod,
          [:defined, [:var_ref, [:@ident, "x", [1, 22]]]],
          [:assign, [:var_field, [:@ident, "x", [1, 0]]], [:@int, "5", [1, 4]]]]]]
-    RipperPlus::Transformer.transform(input_tree).should == input_tree
+    input_tree.should transform_to(input_tree)
+  end
+  
+  it 'finds all LHS vars before transforming an MLHS' do
+    input_tree =
+      [:program,
+       [[:massign,
+         [[:@ident, "a", [1, 0]],
+          [:@const, "B", [1, 3]],
+          [:mlhs_paren,
+           [:mlhs_add_star,
+            [[:@gvar, "$c", [1, 7]]],
+            [:@ident, "rest", [1, 12]],
+            [[:@ident, "d", [1, 18]], [:@ident, "e", [1, 21]]]]]],
+         [:method_add_arg,
+          [:fcall, [:@ident, "foo", [1, 26]]],
+          [:arg_paren,
+           [:args_add_block,
+            [[:var_ref, [:@ident, "a", [1, 30]]],
+             [:var_ref, [:@ident, "c", [1, 33]]],
+             [:var_ref, [:@ident, "d", [1, 36]]]],
+            false]]]]]]
+    output_tree =
+      [:program,
+       [[:massign,
+         [[:@ident, "a", [1, 0]],
+          [:@const, "B", [1, 3]],
+          [:mlhs_paren,
+           [:mlhs_add_star,
+            [[:@gvar, "$c", [1, 7]]],
+            [:@ident, "rest", [1, 12]],
+            [[:@ident, "d", [1, 18]], [:@ident, "e", [1, 21]]]]]],
+         [:method_add_arg,
+          [:fcall, [:@ident, "foo", [1, 26]]],
+          [:arg_paren,
+           [:args_add_block,
+            [[:var_ref, [:@ident, "a", [1, 30]]],
+             [:zcall, [:@ident, "c", [1, 33]]],
+             [:var_ref, [:@ident, "d", [1, 36]]]],
+            false]]]]]]
+    input_tree.should transform_to(output_tree)
+  end
+  
+  it 'creates for-loop MLHS vars before transforming the iteratee' do
+    input_tree =
+      [:program,
+       [[:for,
+         [[:@ident, "a", [1, 4]],
+          [:@ident, "b", [1, 7]],
+          [:mlhs_paren,
+           [[:@ident, "c", [1, 11]],
+            [:mlhs_paren,
+             [:mlhs_add_star,
+              [],
+              [:@ident, "d", [1, 16]],
+              [[:@ident, "e", [1, 19]]]]]]]],
+         [:method_add_arg,
+          [:fcall, [:@ident, "foo", [1, 26]]],
+          [:arg_paren,
+           [:args_add_block,
+            [[:var_ref, [:@ident, "a", [1, 30]]],
+             [:var_ref, [:@ident, "b", [1, 33]]],
+             [:var_ref, [:@ident, "c", [1, 36]]],
+             [:var_ref, [:@ident, "d", [1, 39]]],
+             [:var_ref, [:@ident, "e", [1, 42]]],
+             [:var_ref, [:@ident, "f", [1, 45]]],
+             [:var_ref, [:@ident, "g", [1, 48]]]],
+            false]]],
+         [[:void_stmt]]]]]
+    output_tree =
+      [:program,
+       [[:for,
+         [[:@ident, "a", [1, 4]],
+          [:@ident, "b", [1, 7]],
+          [:mlhs_paren,
+           [[:@ident, "c", [1, 11]],
+            [:mlhs_paren,
+             [:mlhs_add_star,
+              [],
+              [:@ident, "d", [1, 16]],
+              [[:@ident, "e", [1, 19]]]]]]]],
+         [:method_add_arg,
+          [:fcall, [:@ident, "foo", [1, 26]]],
+          [:arg_paren,
+           [:args_add_block,
+            [[:var_ref, [:@ident, "a", [1, 30]]],
+             [:var_ref, [:@ident, "b", [1, 33]]],
+             [:var_ref, [:@ident, "c", [1, 36]]],
+             [:var_ref, [:@ident, "d", [1, 39]]],
+             [:var_ref, [:@ident, "e", [1, 42]]],
+             [:zcall, [:@ident, "f", [1, 45]]],
+             [:zcall, [:@ident, "g", [1, 48]]]],
+            false]]],
+         [[:void_stmt]]]]]
+    input_tree.should transform_to(output_tree)
   end
 end

@@ -7,6 +7,12 @@ require 'ripper-plus'
 # in ./support/ and its subdirectories.
 Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each {|f| require f}
 
+RSpec::Matchers.define :transform_to do |output|
+  match do |input|
+    RipperPlus::Transformer.transform(input) == output
+  end
+end
+
 RSpec.configure do |config|
   
 end
