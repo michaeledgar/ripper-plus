@@ -6,7 +6,18 @@ module RipperPlus
       # simplifies algorithm to have the scope blocker be the stack base
       @stack = [SCOPE_BLOCKER_9000, Set.new]
     end
-  
+
+    def inspect
+      middle = @stack.map do |scope|
+        if SCOPE_BLOCKER_9000 == scope
+          '||'
+        else
+          "[ #{scope.to_a.sort.join(', ')} ]"
+        end
+      end.join(' ')
+      "< #{middle} >"
+    end
+
     def add_variable(var)
       @stack.last << var
     end
