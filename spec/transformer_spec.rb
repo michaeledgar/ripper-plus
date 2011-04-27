@@ -422,4 +422,46 @@ describe RipperPlus::Transformer do
         [:var_ref, [:@ident, "x", [1, 27]]]]]
     input_tree.should transform_to output_tree
   end
+  
+  it 'creates closed scopes when singleton classes are opened' do
+    input_tree =
+      [:program,
+       [[:assign, [:var_field, [:@ident, "x", [1, 0]]], [:@int, "5", [1, 4]]],
+        [:sclass,
+         [:var_ref, [:@const, "String", [1, 16]]],
+         [:bodystmt, [[:var_ref, [:@ident, "x", [1, 24]]]], nil, nil, nil]]]]
+    output_tree =
+      [:program,
+       [[:assign, [:var_field, [:@ident, "x", [1, 0]]], [:@int, "5", [1, 4]]],
+        [:sclass,
+         [:var_ref, [:@const, "String", [1, 16]]],
+         [:bodystmt, [[:zcall, [:@ident, "x", [1, 24]]]], nil, nil, nil]]]]
+    input_tree.should transform_to output_tree
+  end
+  
+  it 'refers to the enclosing environment to determine the singleton to open' do
+    input_tree =
+      [:program,
+       [[:assign,
+         [:var_field, [:@ident, "x", [1, 0]]],
+         [:string_literal, [:string_content, [:@tstring_content, "hi", [1, 5]]]]],
+        [:sclass,
+         [:var_ref, [:@ident, "x", [1, 19]]],
+         [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]
+    input_tree.should transform_to input_tree
+  end
+  
+  it 'refers to the enclosing environment to determine the singleton to open - resulting in zcall' do
+    input_tree =
+      [:program,
+       [[:sclass,
+         [:var_ref, [:@ident, "x", [1, 19]]],
+         [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]
+    output_tree =
+      [:program,
+       [[:sclass,
+         [:zcall, [:@ident, "x", [1, 19]]],
+         [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]
+    input_tree.should transform_to output_tree
+  end
 end

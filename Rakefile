@@ -15,8 +15,10 @@ Jeweler::Tasks.new do |gem|
   gem.name = "ripper-plus"
   gem.homepage = "http://github.com/michaeledgar/ripper-plus"
   gem.license = "MIT"
-  gem.summary = %Q{TODO: one-line summary of your gem}
-  gem.description = %Q{TODO: longer description of your gem}
+  gem.summary = %Q{Parses Ruby code into an improved Ripper AST format}
+  gem.description = %Q{Ripper is the Ruby parser library packaged
+with Ruby 1.9. While quite complete, it has some quirks that can
+make use frustrating. This gem intends to correct them.}
   gem.email = "michael.j.edgar@dartmouth.edu"
   gem.authors = ["Michael Edgar"]
   # Include your dependencies below. Runtime dependencies are required when using your gem,

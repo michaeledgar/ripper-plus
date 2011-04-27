@@ -113,7 +113,7 @@ module RipperPlus
           end
           transform_tree(block_body, scope_stack)
         end
-      when :if_mod, :unless_mod, :while_mod, :until_mod
+      when :if_mod, :unless_mod, :while_mod, :until_mod, :rescue_mod
         # The AST is the reverse of the parse order for these nodes.
         transform_tree(tree[2], scope_stack)
         transform_tree(tree[1], scope_stack)
