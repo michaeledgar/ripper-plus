@@ -29,11 +29,11 @@ If one takes the intuitive approach, one would assume it prints "Label: hello", 
 
 `say_what?` prints a blank line! This is because as soon as the `x` on the LHS is parsed, `x` is a local variable with value `nil`. By the time `defined?(x)` is executed, `x` has long since been a local variable!
 
-## Ripper's Mistake
+## Ripper's Bareword Behavior
 
-Ripper doesn't carry scope information as it parses, and as such, parses any lone identifier as an AST node of type `:var_ref`. It is up to consumers of the AST to figure out the meaning of the `:var_ref` node. It can be reasonably argued that the semantics of the `:var_ref` node should not be part of the AST, as my thesis adviser pointed out when I complained about this, as the two are syntactically identical. Unfortunately, the meaning of the `var_ref` node comes from the parser itself; any attempt to determine semantics based solely on the AST is simply re-creating the work the parser ordinarily does! Indeed, when Ruby parses the code for execution, it *does* create different internal node types upon seeing a method-call bareword and a local variable bareword!
+Ripper doesn't carry scope information as it parses, and as such, parses any lone identifier as an AST node of type `:var_ref`. It is up to consumers of the AST to figure out the meaning of the `:var_ref` node. It can be reasonably argued that the semantics of the `:var_ref` node should not be part of the AST, as my thesis adviser pointed out when I complained about this, as the two are syntactically identical. Unfortunately, the meaning of the `var_ref` node comes from the parser itself; any attempt to determine semantics based solely on the AST is simply re-creating the work the parser ordinarily does. Indeed, when Ruby parses the code for execution, it *does* create different internal AST node types upon seeing a method-call bareword and a local variable bareword!
 
-I'd like to see this behavior rolled into Ripper proper. Until then, `ripper-plus` is a reasonable replacement.
+I'd like to see this behavior rolled into Ripper proper. Until then, `ripper-plus` does it.
 
 ## ripper-plus
 
@@ -47,7 +47,54 @@ Need to be properly resolved. Did you know that, unlike the `label = label` exam
     def foo(x, y = y())
     end
 
-Anyway, ripper-plus turns all method-call `:var_ref` nodes into `zcall` nodes; the node structure is otherwise unchanged.
+Anyway, ripper-plus turns all method-call `:var_ref` nodes into `:zcall` nodes; the node structure is otherwise unchanged. It runs in O(N) time and O(h) space, where h is the height of the tree.
+
+## Syntax Errors
+
+Not all syntax errors in Ruby fail to parse as valid Ruby. Using `next`/`redo`/`break`/`retry` when they have no meaning will cause a "compile error (SyntaxError)" exception to be raised during parsing. Attempting to use those expressions in a value context will also fail to compile. Ripper, however, doesn't do any of this validation:
+
+    pp Ripper.sexp('x = 5; next x')
+    #=>
+    [:program,
+     [[:assign, [:var_field, [:@ident, "x", [1, 0]]], [:@int, "5", [1, 4]]],
+      [:next, [:args_add_block, [[:var_ref, [:@ident, "x", [1, 12]]]], false]]]]
+
+Assigning to set read-only variables is also caught by the Ruby parser, and not at runtime. An easy way to verify this is to put a simple print statement before the offending syntax error:
+
+    $ ruby -e 'p 5; $1 = "5"'
+    -e:1: Can't set variable $1
+
+Ripper catches this by wrapping the offending assignment in an `:assign_error` node. But not all such invalid assignments are caught:
+
+    pp Ripper.sexp('$1 = 5')
+    #=>
+    [:program,
+     [[:assign, [:assign_error, [:@backref, "$1", [1, 0]]], [:@int, "5", [1, 5]]]]]
+
+    pp Ripper.sexp('nil = self')
+    #=>
+    [:program,
+     [[:assign,
+       [:var_field, [:@kw, "nil", [1, 0]]],
+       [:var_ref, [:@kw, "self", [1, 6]]]]]]
+
+Ripper has at least one other error node type, `:class_name_error`:
+
+    pp Ripper.sexp('class abc; end')
+    #=>
+    [:program,
+     [[:class,
+       [:const_ref, [:class_name_error, [:@ident, "foo", [1, 6]]]],
+       nil,
+       [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]
+
+Ruby has a few dozen of these syntax errors that are caught at compile time, and most of them are things you would be hard-pressed to justify: re-using argument names (`def foo(x, x); end`), creating classes or modules in method bodies, and so on.  Yet Ripper does not provide an easy way to check if these errors are present in a given AST.
+
+I'm not convinced that wrapping offending nodes in different node types is the best way to handle this issue. Firstly, the error nodes are not always high enough in the tree (`:alias_error`, which arises when aliasing `$1, $2, ...`, is a notable exception). The position of the `:class_name_error` node forces every consumption of a `:class` node to check if the name subtree contains a `:class_name_error` node. The whole class is invalid though! If anything, the entire `:class` node should be inside an `:error` node. The same holds true for `:assign` nodes. This isn't really the Ripper designer's faults: Ripper is essentially a separate set of action routines in the same bison grammar used by YARV proper, and as an SAX-style parser, it'd be much harder to push errors upward.
+
+It does seem reasonable, however, that while we are transforming `:var_ref` into `:zcall` nodes, we can find these errors (including ones ignored by Ripper), wrap them in `:error` nodes, and provide a list of exceptions corresponding to the semantic errors. `ripper-plus` does just that.
+
+## You Should be Using ripper-plus
 
 The truth is, everybody who is using Ripper right now *should* be doing *all* of this. Anything short, and you have bugs. [Laser](https://github.com/michaeledgar/laser/) has bugs as a result. It's a pain in the ass to get it all right. `ripper-plus` probably has bugs - I'm not gonna lie, I found one while writing this. But I'm pretty damn sure it's solid. Hopefully, in Ruby 1.9.x, this will be the default. For now, you *should* use ripper-plus.
 

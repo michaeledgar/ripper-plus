@@ -43,6 +43,11 @@ module RipperPlus
   module Transformer
     extend self
 
+    class SyntaxError < StandardError; end
+    class LHSError < SyntaxError; end
+    class DynamicConstantError < SyntaxError; end
+    class InvalidArgumentError < SyntaxError; end
+
     # Transforms the given AST into a RipperPlus AST.
     def transform(root)
       new_copy = clone_sexp(root)
@@ -56,8 +61,13 @@ module RipperPlus
       case tree[0]
       when :assign, :massign
         lhs, rhs = tree[1..2]
-        add_variables_from_lhs(lhs, scope_stack)
-        transform_tree(rhs, scope_stack)
+        begin
+          add_variables_from_lhs(lhs, scope_stack)
+        rescue SyntaxError => err
+          wrap_node_with_error(tree)
+        else
+          transform_tree(rhs, scope_stack)
+        end
       when :for
         vars, iterated, body = tree[1..3]
         add_variables_from_lhs(vars, scope_stack)
@@ -68,14 +78,23 @@ module RipperPlus
           tree[0] = :zcall
         end
       when :class
-        superclass, body = tree[2..3]
-        transform_tree(superclass, scope_stack) if superclass  # superclass node
-        scope_stack.with_closed_scope do
-          transform_tree(body, scope_stack)
+        name, superclass, body = tree[1..3]
+        if name[1][0] == :class_name_error || scope_stack.in_method?
+          wrap_node_with_error(tree)
+        else
+          transform_tree(superclass, scope_stack) if superclass  # superclass node
+          scope_stack.with_closed_scope do
+            transform_tree(body, scope_stack)
+          end
         end
       when :module
-        scope_stack.with_closed_scope do
-          transform_tree(tree[2], scope_stack)  # body
+        name, body = tree[1..2]
+        if name[1][0] == :class_name_error || scope_stack.in_method?
+          wrap_node_with_error(tree)
+        else
+          scope_stack.with_closed_scope do
+            transform_tree(body, scope_stack)  # body
+          end
         end
       when :sclass
         singleton, body = tree[1..2]
@@ -84,19 +103,29 @@ module RipperPlus
           transform_tree(body, scope_stack)
         end
       when :def
-        scope_stack.with_closed_scope do
+        scope_stack.with_closed_scope(true) do
           param_node = tree[2]
           body = tree[3]
-          transform_params(param_node, scope_stack)
-          transform_tree(body, scope_stack)
+          begin
+            transform_params(param_node, scope_stack)
+          rescue SyntaxError
+            wrap_node_with_error(tree)
+          else
+            transform_tree(body, scope_stack)
+          end
         end
       when :defs
         transform_tree(tree[1], scope_stack)  # singleton could be a method call!
-        scope_stack.with_closed_scope do
+        scope_stack.with_closed_scope(true) do
           param_node = tree[4]
           body = tree[5]
-          transform_params(param_node, scope_stack)
-          transform_tree(body, scope_stack)
+          begin
+            transform_params(param_node, scope_stack)
+          rescue SyntaxError
+            wrap_node_with_error(tree)
+          else
+            transform_tree(body, scope_stack)
+          end
         end
       when :rescue
         list, name, body = tree[1..3]
@@ -124,6 +153,8 @@ module RipperPlus
         # The AST is the reverse of the parse order for these nodes.
         transform_tree(tree[2], scope_stack)
         transform_tree(tree[1], scope_stack)
+      when :alias_error, :assign_error  # error already top-level! wrap it again.
+        wrap_node_with_error(tree)
       else
         transform_in_order(tree, scope_stack)
       end
@@ -133,6 +164,10 @@ module RipperPlus
       case lhs[0]
       when :@ident
         scope_stack.add_variable(lhs[1])
+      when :const_path_field, :@const, :top_const_field
+        if scope_stack.in_method?
+          raise DynamicConstantError.new
+        end
       when Array
         lhs.each { |var| add_variables_from_lhs(var, scope_stack) }
       when :mlhs_paren, :var_field, :rest_param, :blockarg
@@ -146,6 +181,10 @@ module RipperPlus
         if post_star
           post_star.each { |var| add_variables_from_lhs(var, scope_stack) }
         end
+      when :param_error
+        raise InvalidArgumentError.new
+      when :assign_error
+        raise LHSError.new
       end
     end
 
@@ -188,6 +227,11 @@ module RipperPlus
           add_variables_from_lhs(block, scope_stack)
         end
       end
+    end
+
+    def wrap_node_with_error(tree)
+      new_tree = [:error, tree.dup]
+      tree.replace(new_tree)
     end
 
     # Deep-copies the sexp. I wish Array#clone did deep copies...

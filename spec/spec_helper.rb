@@ -11,6 +11,20 @@ RSpec::Matchers.define :transform_to do |output|
   match do |input|
     RipperPlus::Transformer.transform(input) == output
   end
+
+  diffable
+end
+
+def dfs_for_node_type(tree, type)
+  if tree[0] == type
+    return tree
+  else
+    tree.select { |child| Array === child }.each do |child|
+      result = dfs_for_node_type(child, type)
+      return result if result
+    end
+  end
+  nil
 end
 
 RSpec.configure do |config|

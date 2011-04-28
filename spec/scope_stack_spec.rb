@@ -26,4 +26,24 @@ describe RipperPlus::ScopeStack do
     end
     @stack.should have_variable(:hello)
   end
+  
+  it 'tracks entry and exit of methods' do
+    @stack.should_not be_in_method
+    @stack.with_open_scope do
+      @stack.should_not be_in_method
+      @stack.with_closed_scope do
+        @stack.should_not be_in_method
+        @stack.with_closed_scope(true) do
+          @stack.should be_in_method
+          @stack.with_closed_scope do
+            @stack.should be_in_method
+          end
+          @stack.should be_in_method
+        end
+        @stack.should_not be_in_method
+      end
+      @stack.should_not be_in_method
+    end
+    @stack.should_not be_in_method
+  end
 end
