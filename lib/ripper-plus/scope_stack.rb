@@ -13,6 +13,7 @@ module RipperPlus
       @in_method
     end
 
+    # For debugging purposes
     def inspect
       middle = @stack.map do |scope|
         if SCOPE_BLOCKER_9000 == scope

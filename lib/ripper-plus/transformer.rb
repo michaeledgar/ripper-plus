@@ -56,13 +56,14 @@ module RipperPlus
       new_copy
     end
 
-    # Transforms the given tree into a RipperPlus AST.
+    # Transforms the given tree into a RipperPlus AST, using a scope stack.
+    # This will be recursively called through each level of the tree.
     def transform_tree(tree, scope_stack)
       case tree[0]
       when :assign, :massign
         lhs, rhs = tree[1..2]
         begin
-          add_variables_from_lhs(lhs, scope_stack)
+          add_variables_from_node(lhs, scope_stack)
         rescue SyntaxError => err
           wrap_node_with_error(tree)
         else
@@ -70,10 +71,12 @@ module RipperPlus
         end
       when :for
         vars, iterated, body = tree[1..3]
-        add_variables_from_lhs(vars, scope_stack)
+        add_variables_from_node(vars, scope_stack)
         transform_tree(iterated, scope_stack)
         transform_tree(body, scope_stack)
       when :var_ref
+        # When we reach a :var_ref, we should know everything we need to know
+        # in order to tell if it should be transformed into a :zcall.
         if tree[1][0] == :@ident && !scope_stack.has_variable?(tree[1][1])
           tree[0] = :zcall
         end
@@ -130,8 +133,9 @@ module RipperPlus
       when :rescue
         list, name, body = tree[1..3]
         transform_tree(list, scope_stack)
+        # Don't forget the rescue argument!
         if name
-          add_variables_from_lhs(name, scope_stack)
+          add_variables_from_node(name, scope_stack)
         end
         transform_tree(body, scope_stack)
       when :method_add_block
@@ -144,7 +148,7 @@ module RipperPlus
           if block_args
             transform_params(block_args[1], scope_stack)
             if block_args[2]
-              block_args[2].each { |var| add_variables_from_lhs(var, scope_stack) }
+              block_args[2].each { |var| add_variables_from_node(var, scope_stack) }
             end
           end
           transform_tree(block_body, scope_stack)
@@ -160,7 +164,10 @@ module RipperPlus
       end
     end
 
-    def add_variables_from_lhs(lhs, scope_stack)
+    # Adds variables to the given scope stack from the given node. Allows
+    # nodes from parameter lists, left-hand-sides, block argument lists, and
+    # so on.
+    def add_variables_from_node(lhs, scope_stack)
       case lhs[0]
       when :@ident
         scope_stack.add_variable(lhs[1])
@@ -169,17 +176,17 @@ module RipperPlus
           raise DynamicConstantError.new
         end
       when Array
-        lhs.each { |var| add_variables_from_lhs(var, scope_stack) }
+        lhs.each { |var| add_variables_from_node(var, scope_stack) }
       when :mlhs_paren, :var_field, :rest_param, :blockarg
-        add_variables_from_lhs(lhs[1], scope_stack)
+        add_variables_from_node(lhs[1], scope_stack)
       when :mlhs_add_star
         pre_star, star, post_star = lhs[1..3]
-        pre_star.each { |var| add_variables_from_lhs(var, scope_stack) }
+        pre_star.each { |var| add_variables_from_node(var, scope_stack) }
         if star
-          add_variables_from_lhs(star, scope_stack)
+          add_variables_from_node(star, scope_stack)
         end
         if post_star
-          post_star.each { |var| add_variables_from_lhs(var, scope_stack) }
+          post_star.each { |var| add_variables_from_node(var, scope_stack) }
         end
       when :param_error
         raise InvalidArgumentError.new
@@ -208,27 +215,28 @@ module RipperPlus
       if param_node
         positional_1, optional, rest, positional_2, block = param_node[1..5]
         if positional_1
-          positional_1.each { |var| add_variables_from_lhs(var, scope_stack) }
+          positional_1.each { |var| add_variables_from_node(var, scope_stack) }
         end
         if optional
           optional.each do |var, value|
             # MUST walk value first. (def foo(y=y); end) == (def foo(y=y()); end)
             transform_tree(value, scope_stack)
-            add_variables_from_lhs(var, scope_stack)
+            add_variables_from_node(var, scope_stack)
           end
         end
         if rest && rest[1]
-          add_variables_from_lhs(rest, scope_stack)
+          add_variables_from_node(rest, scope_stack)
         end
         if positional_2
-          positional_2.each { |var| add_variables_from_lhs(var, scope_stack) }
+          positional_2.each { |var| add_variables_from_node(var, scope_stack) }
         end
         if block
-          add_variables_from_lhs(block, scope_stack)
+          add_variables_from_node(block, scope_stack)
         end
       end
     end
 
+    # Wraps the given node as an error node with minimal space overhead.
     def wrap_node_with_error(tree)
       new_tree = [:error, tree.dup]
       tree.replace(new_tree)

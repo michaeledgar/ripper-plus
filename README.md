@@ -92,7 +92,15 @@ Ruby has a few dozen of these syntax errors that are caught at compile time, and
 
 I'm not convinced that wrapping offending nodes in different node types is the best way to handle this issue. Firstly, the error nodes are not always high enough in the tree (`:alias_error`, which arises when aliasing `$1, $2, ...`, is a notable exception). The position of the `:class_name_error` node forces every consumption of a `:class` node to check if the name subtree contains a `:class_name_error` node. The whole class is invalid though! If anything, the entire `:class` node should be inside an `:error` node. The same holds true for `:assign` nodes. This isn't really the Ripper designer's faults: Ripper is essentially a separate set of action routines in the same bison grammar used by YARV proper, and as an SAX-style parser, it'd be much harder to push errors upward.
 
-It does seem reasonable, however, that while we are transforming `:var_ref` into `:zcall` nodes, we can find these errors (including ones ignored by Ripper), wrap them in `:error` nodes, and provide a list of exceptions corresponding to the semantic errors. `ripper-plus` does just that.
+It does seem reasonable, however, that while we are transforming `:var_ref` into `:zcall` nodes, we can find these errors (including ones ignored by Ripper), wrap them in `:error` nodes, and provide a list of exceptions corresponding to the semantic errors. `ripper-plus` does just that. For example, the above error will transform into this:
+
+    [:program,
+     [[:error,
+       [:class,
+        [:const_ref, [:class_name_error, [:@ident, "foo", [1, 6]]]],
+        nil,
+        [:bodystmt, [[:void_stmt]], nil, nil, nil]],
+       'class/module name must be CONSTANT']]]
 
 ## You Should be Using ripper-plus
 
