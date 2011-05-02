@@ -42,4 +42,5 @@ pkg
 # For vim:
 #*.swp
 
+ripper-plus.gemspec
 .rvmrc
