@@ -10,6 +10,7 @@ end
 require 'rake'
 
 require 'jeweler'
+require './lib/ripper-plus/version'
 Jeweler::Tasks.new do |gem|
   # gem is a Gem::Specification... see http://docs.rubygems.org/read/chapter/20 for more options
   gem.name = "ripper-plus"
@@ -21,6 +22,7 @@ with Ruby 1.9. While quite complete, it has some quirks that can
 make use frustrating. This gem intends to correct them.}
   gem.email = "michael.j.edgar@dartmouth.edu"
   gem.authors = ["Michael Edgar"]
+  gem.version = RipperPlus::Version::STRING
   # Include your dependencies below. Runtime dependencies are required when using your gem,
   # and development dependencies are only needed for development (ie running rake tasks, tests, etc)
   #  gem.add_runtime_dependency 'jabber4r', '> 0.1'
