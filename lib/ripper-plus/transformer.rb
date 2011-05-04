@@ -49,8 +49,8 @@ module RipperPlus
     extend self
 
     # Transforms the given AST into a RipperPlus AST.
-    def transform(root)
-      new_copy = clone_sexp(root)
+    def transform(root, opts={})
+      new_copy = opts[:in_place] ? root : clone_sexp(root)
       scope_stack = ScopeStack.new
       transform_tree(new_copy, scope_stack)
       new_copy
@@ -59,121 +59,125 @@ module RipperPlus
     # Transforms the given tree into a RipperPlus AST, using a scope stack.
     # This will be recursively called through each level of the tree.
     def transform_tree(tree, scope_stack)
-      case tree[0]
-      when :assign, :massign
-        lhs, rhs = tree[1..2]
-        begin
-          add_variables_from_node(lhs, scope_stack)
-        rescue SyntaxError => err
-          wrap_node_with_error(tree)
-        else
-          transform_tree(rhs, scope_stack)
-        end
-      when :for
-        vars, iterated, body = tree[1..3]
-        add_variables_from_node(vars, scope_stack)
-        transform_tree(iterated, scope_stack)
-        transform_tree(body, scope_stack)
-      when :var_ref
-        # When we reach a :var_ref, we should know everything we need to know
-        # in order to tell if it should be transformed into a :zcall.
-        if tree[1][0] == :@ident && !scope_stack.has_variable?(tree[1][1])
-          tree[0] = :zcall
-        end
-      when :class
-        name, superclass, body = tree[1..3]
-        if name[1][0] == :class_name_error || scope_stack.in_method?
-          wrap_node_with_error(tree)
-        else
-          transform_tree(superclass, scope_stack) if superclass  # superclass node
-          scope_stack.with_closed_scope do
-            transform_tree(body, scope_stack)
-          end
-        end
-      when :module
-        name, body = tree[1..2]
-        if name[1][0] == :class_name_error || scope_stack.in_method?
-          wrap_node_with_error(tree)
-        else
-          scope_stack.with_closed_scope do
-            transform_tree(body, scope_stack)  # body
-          end
-        end
-      when :sclass
-        singleton, body = tree[1..2]
-        transform_tree(singleton, scope_stack)
-        scope_stack.with_closed_scope do
-          transform_tree(body, scope_stack)
-        end
-      when :def
-        scope_stack.with_closed_scope(true) do
-          param_node = tree[2]
-          body = tree[3]
-          transform_params_then_body(tree, param_node, body, scope_stack)
-        end
-      when :defs
-        transform_tree(tree[1], scope_stack)  # singleton could be a method call!
-        scope_stack.with_closed_scope(true) do
-          param_node = tree[4]
-          body = tree[5]
-          transform_params_then_body(tree, param_node, body, scope_stack)
-        end
-      when :lambda
-        param_node, body = tree[1..2]
-        scope_stack.with_open_scope do
-          transform_params_then_body(tree, param_node, body, scope_stack)
-        end
-      when :rescue
-        list, name, body = tree[1..3]
-        transform_tree(list, scope_stack)
-        # Don't forget the rescue argument!
-        if name
-          add_variables_from_node(name, scope_stack)
-        end
-        transform_tree(body, scope_stack)
-      when :method_add_block
-        call, block = tree[1..2]
-        # first transform the call
-        transform_tree(call, scope_stack)
-        # then transform the block
-        param_node, body = block[1..2]
-        scope_stack.with_open_scope do
+      if Symbol === tree[0]
+        case tree[0]
+        when :assign, :massign
+          lhs, rhs = tree[1..2]
           begin
-            if param_node
-              transform_params(param_node[1], scope_stack)
-              if param_node[2]
-                add_variable_list(param_node[2], scope_stack, false)
-              end
-            end
-          rescue SyntaxError
+            add_variables_from_node(lhs, scope_stack)
+          rescue SyntaxError => err
             wrap_node_with_error(tree)
           else
+            transform_tree(rhs, scope_stack)
+          end
+        when :for
+          vars, iterated, body = tree[1..3]
+          add_variables_from_node(vars, scope_stack)
+          transform_tree(iterated, scope_stack)
+          transform_tree(body, scope_stack)
+        when :var_ref
+          # When we reach a :var_ref, we should know everything we need to know
+          # in order to tell if it should be transformed into a :zcall.
+          if tree[1][0] == :@ident && !scope_stack.has_variable?(tree[1][1])
+            tree[0] = :zcall
+          end
+        when :class
+          name, superclass, body = tree[1..3]
+          if name[1][0] == :class_name_error || scope_stack.in_method?
+            wrap_node_with_error(tree)
+          else
+            transform_tree(superclass, scope_stack) if superclass  # superclass node
+            scope_stack.with_closed_scope do
+              transform_tree(body, scope_stack)
+            end
+          end
+        when :module
+          name, body = tree[1..2]
+          if name[1][0] == :class_name_error || scope_stack.in_method?
+            wrap_node_with_error(tree)
+          else
+            scope_stack.with_closed_scope do
+              transform_tree(body, scope_stack)  # body
+            end
+          end
+        when :sclass
+          singleton, body = tree[1..2]
+          transform_tree(singleton, scope_stack)
+          scope_stack.with_closed_scope do
             transform_tree(body, scope_stack)
           end
-        end
-      when :binary
-        # must check for named groups in a literal match. wowzerz.
-        lhs, op, rhs = tree[1..3]
-        if op == :=~
-          if lhs[0] == :regexp_literal
-            add_locals_from_regexp(lhs, scope_stack)
-            transform_tree(rhs, scope_stack)
-          elsif lhs[0] == :paren && !lhs[1].empty? && lhs[1] != [[:void_stmt]] && lhs[1].last[0] == :regexp_literal
-            lhs[1][0..-2].each { |node| transform_tree(node, scope_stack) }
-            add_locals_from_regexp(lhs[1].last, scope_stack)
-            transform_tree(rhs, scope_stack)
+        when :def
+          scope_stack.with_closed_scope(true) do
+            param_node = tree[2]
+            body = tree[3]
+            transform_params_then_body(tree, param_node, body, scope_stack)
+          end
+        when :defs
+          transform_tree(tree[1], scope_stack)  # singleton could be a method call!
+          scope_stack.with_closed_scope(true) do
+            param_node = tree[4]
+            body = tree[5]
+            transform_params_then_body(tree, param_node, body, scope_stack)
+          end
+        when :lambda
+          param_node, body = tree[1..2]
+          scope_stack.with_open_scope do
+            transform_params_then_body(tree, param_node, body, scope_stack)
+          end
+        when :rescue
+          list, name, body = tree[1..3]
+          transform_tree(list, scope_stack)
+          # Don't forget the rescue argument!
+          if name
+            add_variables_from_node(name, scope_stack)
+          end
+          transform_tree(body, scope_stack)
+        when :method_add_block
+          call, block = tree[1..2]
+          # first transform the call
+          transform_tree(call, scope_stack)
+          # then transform the block
+          param_node, body = block[1..2]
+          scope_stack.with_open_scope do
+            begin
+              if param_node
+                transform_params(param_node[1], scope_stack)
+                if param_node[2]
+                  add_variable_list(param_node[2], scope_stack, false)
+                end
+              end
+            rescue SyntaxError
+              wrap_node_with_error(tree)
+            else
+              transform_tree(body, scope_stack)
+            end
+          end
+        when :binary
+          # must check for named groups in a literal match. wowzerz.
+          lhs, op, rhs = tree[1..3]
+          if op == :=~
+            if lhs[0] == :regexp_literal
+              add_locals_from_regexp(lhs, scope_stack)
+              transform_tree(rhs, scope_stack)
+            elsif lhs[0] == :paren && !lhs[1].empty? && lhs[1] != [[:void_stmt]] && lhs[1].last[0] == :regexp_literal
+              lhs[1][0..-2].each { |node| transform_tree(node, scope_stack) }
+              add_locals_from_regexp(lhs[1].last, scope_stack)
+              transform_tree(rhs, scope_stack)
+            else
+              transform_in_order(tree, scope_stack)
+            end
           else
             transform_in_order(tree, scope_stack)
           end
+        when :if_mod, :unless_mod, :while_mod, :until_mod, :rescue_mod
+          # The AST is the reverse of the parse order for these nodes.
+          transform_tree(tree[2], scope_stack)
+          transform_tree(tree[1], scope_stack)
+        when :alias_error, :assign_error  # error already top-level! wrap it again.
+          wrap_node_with_error(tree)
         else
           transform_in_order(tree, scope_stack)
         end
-      when :if_mod, :unless_mod, :while_mod, :until_mod, :rescue_mod
-        # The AST is the reverse of the parse order for these nodes.
-        transform_tree(tree[2], scope_stack)
-        transform_tree(tree[1], scope_stack)
-      when :alias_error, :assign_error  # error already top-level! wrap it again.
-        wrap_node_with_error(tree)
       else
         transform_in_order(tree, scope_stack)
       end
