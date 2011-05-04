@@ -25,7 +25,10 @@ module RipperPlus
       "< #{middle} >"
     end
 
-    def add_variable(var)
+    def add_variable(var, allow_duplicates=true)
+      if !allow_duplicates && @stack.last.include?(var)
+        raise DuplicateArgumentError.new("duplicated argument name (#{var})")
+      end
       @stack.last << var
     end
   

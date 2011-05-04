@@ -881,5 +881,183 @@ describe RipperPlus::Transformer do
       end
     end
     
+    it 'should wrap method definitions with duplicated arguments in error nodes' do
+      input_tree =
+        [:program,
+         [[:def,
+           [:@ident, "foo", [1, 4]],
+           [:paren,
+            [:params,
+             [[:@ident, "a", [1, 8]], [:@ident, "a", [1, 11]]],
+             nil,
+             nil,
+             nil,
+             nil]],
+           [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]
+      output_tree =
+        [:program,
+         [[:error,
+           [:def,
+            [:@ident, "foo", [1, 4]],
+            [:paren,
+             [:params,
+              [[:@ident, "a", [1, 8]], [:@ident, "a", [1, 11]]],
+              nil,
+              nil,
+              nil,
+              nil]],
+            [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]]
+      input_tree.should transform_to output_tree
+    end
+    
+    it 'should wrap singleton method definitions with duplicated arguments in error nodes' do
+      input_tree =
+        [:program,
+         [[:defs,
+           [:var_ref, [:@kw, "self", [1, 4]]],
+           [:@period, ".", [1, 8]],
+           [:@ident, "foo", [1, 4]],
+           [:paren,
+            [:params,
+             [[:@ident, "a", [1, 8]], [:@ident, "a", [1, 11]]],
+             nil,
+             nil,
+             nil,
+             nil]],
+           [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]
+      output_tree =
+        [:program,
+         [[:error,
+           [:defs,
+            [:var_ref, [:@kw, "self", [1, 4]]],
+            [:@period, ".", [1, 8]],
+            [:@ident, "foo", [1, 4]],
+            [:paren,
+             [:params,
+              [[:@ident, "a", [1, 8]], [:@ident, "a", [1, 11]]],
+              nil,
+              nil,
+              nil,
+              nil]],
+            [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]]
+      input_tree.should transform_to output_tree
+    end
+    
+    it 'should wrap stabby lambda definitions with duplicated arguments in error nodes' do
+      input_tree =
+        [:program,
+         [[:lambda,
+           [:paren,
+            [:params,
+             [[:@ident, "a", [1, 3]], [:@ident, "b", [1, 6]], [:@ident, "a", [1, 9]]],
+             nil,
+             nil,
+             nil,
+             nil]],
+           [[:void_stmt]]]]]
+      output_tree =
+        [:program,
+         [[:error,
+           [:lambda,
+            [:paren,
+             [:params,
+              [[:@ident, "a", [1, 3]], [:@ident, "b", [1, 6]], [:@ident, "a", [1, 9]]],
+              nil,
+              nil,
+              nil,
+              nil]],
+            [[:void_stmt]]]]]]
+      input_tree.should transform_to output_tree
+    end
+    
+    it 'should wrap block calls with duplicated block args in error nodes' do
+      input_tree =
+        [:program,
+         [[:method_add_block,
+           [:call,
+            [:var_ref, [:@kw, "self", [1, 0]]],
+            :".",
+            [:@ident, "foo!", [1, 5]]],
+           [:brace_block,
+            [:block_var,
+             [:params,
+              [[:@ident, "a", [1, 13]]],
+              [[[:@ident, "b", [1, 16]], [:@int, "3", [1, 18]]]],
+              nil,
+              [[:mlhs_paren,
+                [:mlhs_add_star,
+                 [[:mlhs_paren, [:@ident, "c", [1, 22]]]],
+                 [:@ident, "a", [1, 26]]]]],
+              nil],
+             nil],
+            [[:void_stmt]]]]]]
+      output_tree =
+        [:program,
+         [[:error,
+           [:method_add_block,
+            [:call,
+             [:var_ref, [:@kw, "self", [1, 0]]],
+             :".",
+             [:@ident, "foo!", [1, 5]]],
+            [:brace_block,
+             [:block_var,
+              [:params,
+               [[:@ident, "a", [1, 13]]],
+               [[[:@ident, "b", [1, 16]], [:@int, "3", [1, 18]]]],
+               nil,
+               [[:mlhs_paren,
+                 [:mlhs_add_star,
+                  [[:mlhs_paren, [:@ident, "c", [1, 22]]]],
+                  [:@ident, "a", [1, 26]]]]],
+               nil],
+              nil],
+             [[:void_stmt]]]]]]]
+      input_tree.should transform_to output_tree
+    end
+    
+    it 'should wrap block calls with duplicated block-local args in error nodes' do
+      input_tree =
+        [:program,
+         [[:method_add_block,
+           [:call,
+            [:var_ref, [:@kw, "self", [1, 0]]],
+            :".",
+            [:@ident, "foo!", [1, 5]]],
+           [:brace_block,
+            [:block_var,
+             [:params,
+              [[:@ident, "a", [1, 13]]],
+              [[[:@ident, "b", [1, 16]], [:@int, "3", [1, 18]]]],
+              nil,
+              [[:mlhs_paren,
+                [:mlhs_add_star,
+                 [[:mlhs_paren, [:@ident, "c", [1, 22]]]],
+                 [:@ident, "d", [1, 26]]]]],
+              nil],
+             [[:@ident, "e", [1, 30]], [:@ident, "a", [1, 33]]]],
+            [[:void_stmt]]]]]]
+      output_tree =
+        [:program,
+         [[:error,
+           [:method_add_block,
+            [:call,
+             [:var_ref, [:@kw, "self", [1, 0]]],
+             :".",
+             [:@ident, "foo!", [1, 5]]],
+            [:brace_block,
+             [:block_var,
+              [:params,
+               [[:@ident, "a", [1, 13]]],
+               [[[:@ident, "b", [1, 16]], [:@int, "3", [1, 18]]]],
+               nil,
+               [[:mlhs_paren,
+                 [:mlhs_add_star,
+                  [[:mlhs_paren, [:@ident, "c", [1, 22]]]],
+                  [:@ident, "d", [1, 26]]]]],
+               nil],
+              [[:@ident, "e", [1, 30]], [:@ident, "a", [1, 33]]]],
+             [[:void_stmt]]]]]]]
+      input_tree.should transform_to output_tree
+    end
   end
 end

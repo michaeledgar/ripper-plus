@@ -1,5 +1,10 @@
 require 'set'
 module RipperPlus
+  class SyntaxError < StandardError; end
+  class LHSError < SyntaxError; end
+  class DynamicConstantError < SyntaxError; end
+  class InvalidArgumentError < SyntaxError; end
+  class DuplicateArgumentError < SyntaxError; end
   # Transforms a 1.9.2 Ripper AST into a RipperPlus AST. The only
   # change as a result of this transformation is that the nodes for
   # local variable references and zcalls (bareword calls to self)
@@ -42,11 +47,6 @@ module RipperPlus
   #    nil, nil, nil]]
   module Transformer
     extend self
-
-    class SyntaxError < StandardError; end
-    class LHSError < SyntaxError; end
-    class DynamicConstantError < SyntaxError; end
-    class InvalidArgumentError < SyntaxError; end
 
     # Transforms the given AST into a RipperPlus AST.
     def transform(root)
@@ -109,35 +109,19 @@ module RipperPlus
         scope_stack.with_closed_scope(true) do
           param_node = tree[2]
           body = tree[3]
-          begin
-            transform_params(param_node, scope_stack)
-          rescue SyntaxError
-            wrap_node_with_error(tree)
-          else
-            transform_tree(body, scope_stack)
-          end
+          transform_params_then_body(tree, param_node, body, scope_stack)
         end
       when :defs
         transform_tree(tree[1], scope_stack)  # singleton could be a method call!
         scope_stack.with_closed_scope(true) do
           param_node = tree[4]
           body = tree[5]
-          begin
-            transform_params(param_node, scope_stack)
-          rescue SyntaxError
-            wrap_node_with_error(tree)
-          else
-            transform_tree(body, scope_stack)
-          end
+          transform_params_then_body(tree, param_node, body, scope_stack)
         end
       when :lambda
-        block_args, block_body = tree[1..2]
+        param_node, body = tree[1..2]
         scope_stack.with_open_scope do
-          transform_params(block_args[1], scope_stack)
-          if block_args[2]
-            block_args[2].each { |var| add_variables_from_node(var, scope_stack) }
-          end
-          transform_tree(block_body, scope_stack)
+          transform_params_then_body(tree, param_node, body, scope_stack)
         end
       when :rescue
         list, name, body = tree[1..3]
@@ -152,15 +136,20 @@ module RipperPlus
         # first transform the call
         transform_tree(call, scope_stack)
         # then transform the block
-        block_args, block_body = block[1..2]
+        param_node, body = block[1..2]
         scope_stack.with_open_scope do
-          if block_args
-            transform_params(block_args[1], scope_stack)
-            if block_args[2]
-              block_args[2].each { |var| add_variables_from_node(var, scope_stack) }
+          begin
+            if param_node
+              transform_params(param_node[1], scope_stack)
+              if param_node[2]
+                add_variable_list(param_node[2], scope_stack, false)
+              end
             end
+          rescue SyntaxError
+            wrap_node_with_error(tree)
+          else
+            transform_tree(body, scope_stack)
           end
-          transform_tree(block_body, scope_stack)
         end
       when :if_mod, :unless_mod, :while_mod, :until_mod, :rescue_mod
         # The AST is the reverse of the parse order for these nodes.
@@ -173,30 +162,40 @@ module RipperPlus
       end
     end
 
+    def transform_params_then_body(tree, params, body, scope_stack)
+      transform_params(params, scope_stack)
+    rescue SyntaxError
+      wrap_node_with_error(tree)
+    else
+      transform_tree(body, scope_stack)
+    end
+
+    def add_variable_list(list, scope_stack, allow_duplicates=true)
+      list.each { |var| add_variables_from_node(var, scope_stack, allow_duplicates) }
+    end
+
     # Adds variables to the given scope stack from the given node. Allows
     # nodes from parameter lists, left-hand-sides, block argument lists, and
     # so on.
-    def add_variables_from_node(lhs, scope_stack)
+    def add_variables_from_node(lhs, scope_stack, allow_duplicates=true)
       case lhs[0]
       when :@ident
-        scope_stack.add_variable(lhs[1])
+        scope_stack.add_variable(lhs[1], allow_duplicates)
       when :const_path_field, :@const, :top_const_field
         if scope_stack.in_method?
           raise DynamicConstantError.new
         end
       when Array
-        lhs.each { |var| add_variables_from_node(var, scope_stack) }
+        add_variable_list(lhs, scope_stack, allow_duplicates)
       when :mlhs_paren, :var_field, :rest_param, :blockarg
-        add_variables_from_node(lhs[1], scope_stack)
+        add_variables_from_node(lhs[1], scope_stack, allow_duplicates)
       when :mlhs_add_star
         pre_star, star, post_star = lhs[1..3]
-        pre_star.each { |var| add_variables_from_node(var, scope_stack) }
+        add_variable_list(pre_star, scope_stack, allow_duplicates)
         if star
-          add_variables_from_node(star, scope_stack)
+          add_variables_from_node(star, scope_stack, allow_duplicates)
         end
-        if post_star
-          post_star.each { |var| add_variables_from_node(var, scope_stack) }
-        end
+        add_variable_list(post_star, scope_stack, allow_duplicates) if post_star
       when :param_error
         raise InvalidArgumentError.new
       when :assign_error
@@ -223,25 +222,19 @@ module RipperPlus
       param_node = param_node[1] if param_node[0] == :paren
       if param_node
         positional_1, optional, rest, positional_2, block = param_node[1..5]
-        if positional_1
-          positional_1.each { |var| add_variables_from_node(var, scope_stack) }
-        end
+        add_variable_list(positional_1, scope_stack, false) if positional_1
         if optional
           optional.each do |var, value|
             # MUST walk value first. (def foo(y=y); end) == (def foo(y=y()); end)
             transform_tree(value, scope_stack)
-            add_variables_from_node(var, scope_stack)
+            add_variables_from_node(var, scope_stack, false)
           end
         end
         if rest && rest[1]
-          add_variables_from_node(rest, scope_stack)
+          add_variables_from_node(rest, scope_stack, false)
         end
-        if positional_2
-          positional_2.each { |var| add_variables_from_node(var, scope_stack) }
-        end
-        if block
-          add_variables_from_node(block, scope_stack)
-        end
+        add_variable_list(positional_2, scope_stack, false) if positional_2
+        add_variables_from_node(block, scope_stack, false) if block
       end
     end
 
