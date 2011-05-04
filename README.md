@@ -119,7 +119,7 @@ Some of these errors are noticed by Ripper, and the offending portion of the syn
           [:var_alias, [:@gvar, "$foo", [1, 6]], [:@backref, "$2", [1, 11]]]]]]
     # Invalid class name
     pp Ripper.sexp('class abc; end')
-    #=> [:program,
+    => [:program,
          [[:class,
            [:const_ref, [:class_name_error, [:@ident, "abc", [1, 6]]]],
            nil,
@@ -130,7 +130,7 @@ The first error, a disallowed alias, results in an `:alias_error` node wrapping 
 
 [code]
     pp Ripper.sexp('def foo(a, @b); end')
-    #=> [:program,
+    => [:program,
          [[:def,
            [:@ident, "foo", [1, 4]],
            [:paren,
@@ -144,7 +144,7 @@ Worse, some errors are not caught at all:
 
 [code]
     pp Ripper.sexp('def foo(a, a, a); end')
-    #=> [:program,
+    => [:program,
          [[:def,
            [:@ident, "foo", [1, 4]],
            [:paren,
@@ -160,7 +160,7 @@ This is very bad. Now every consumer of the Ripper parse tree must check *all me
 
 [code]
     pp Ripper.sexp('something.each { |a, (b, *c, (d, e), a), f| }')
-    #=> [:program,
+    => [:program,
          [[:method_add_block,
            [:call,
             [:var_ref, [:@ident, "something", [1, 0]]], :".",
@@ -197,8 +197,6 @@ Yet it also seems convenient to receive, upon attempting to parse an invalid pro
 Overall, Ripper is very complete for a library covered in "EXPERIMENTAL" warning labels, and gives concise, traditional ASTs. What I've put forward is all I ask after nearly a year of being neck-deep in Ripper output. I think the main two points I've covered need to be addressed in the 1.9 branch of Ruby, and over the coming months, hope to work to get that done.
 
 In the meantime, I'll be using `ripper-plus` in Laser to statically analyze all kinds of stuff about Ruby, but I look forward to the day where I can add `RipperPlus = Ripper if RUBY_VERSION >= MERGED_VERSION` to ripper-plus's main file. `ripper-plus` is O(N), though it's not blazingly fast: it takes about 20-30 ms on my machine to transform the Ripper AST for [the biggest, ugliest Laser code file: the CFG compiler](https://github.com/michaeledgar/laser/blob/master/lib/laser/analysis/control_flow/cfg_builder.rb) to a RipperPlus AST. It takes 50ms for Ripper to parse it in the first place. (That benchmarked transformation is done in-place: `ripper-plus`'s default behavior is to duplicate the Ripper AST.)
-
-If you have ideas or thoughts, please discuss them on ruby-talk and/or ruby-core! I don't have comments implemented for a reason: I feel it fragments the center of discussion.
 
 ## Contributing to ripper-plus
  
