@@ -248,6 +248,66 @@ describe RipperPlus::Transformer do
       input_tree.should transform_to(output_tree)
     end
   
+    it 'should transform respecting stabby-lambda arguments' do
+      input_tree =
+        [:program,
+         [[:assign,
+           [:var_field, [:@ident, "y", [1, 0]]],
+           [:lambda,
+            [:paren,
+             [:params,
+              [[:@ident, "a", [1, 7]]],
+              [[[:@ident, "b", [1, 10]], [:var_ref, [:@ident, "a", [1, 12]]]],
+               [[:@ident, "c", [1, 15]], [:var_ref, [:@ident, "d", [1, 17]]]]],
+              [:rest_param, [:@ident, "rest", [1, 21]]],
+              nil,
+              nil]],
+            [[:binary,
+              [:array,
+               [[:binary,
+                 [:binary,
+                  [:binary,
+                   [:var_ref, [:@ident, "a", [1, 30]]],
+                   :*,
+                   [:var_ref, [:@ident, "b", [1, 34]]]],
+                  :*,
+                  [:var_ref, [:@ident, "c", [1, 38]]]],
+                 :*,
+                 [:var_ref, [:@ident, "d", [1, 42]]]]]],
+              :+,
+              [:var_ref, [:@ident, "rest", [1, 47]]]]]]],
+          [:var_ref, [:@ident, "a", [1, 55]]]]]
+      output_tree =
+        [:program,
+         [[:assign,
+           [:var_field, [:@ident, "y", [1, 0]]],
+           [:lambda,
+            [:paren,
+             [:params,
+              [[:@ident, "a", [1, 7]]],
+              [[[:@ident, "b", [1, 10]], [:var_ref, [:@ident, "a", [1, 12]]]],
+               [[:@ident, "c", [1, 15]], [:zcall, [:@ident, "d", [1, 17]]]]],
+              [:rest_param, [:@ident, "rest", [1, 21]]],
+              nil,
+              nil]],
+            [[:binary,
+              [:array,
+               [[:binary,
+                 [:binary,
+                  [:binary,
+                   [:var_ref, [:@ident, "a", [1, 30]]],
+                   :*,
+                   [:var_ref, [:@ident, "b", [1, 34]]]],
+                  :*,
+                  [:var_ref, [:@ident, "c", [1, 38]]]],
+                 :*,
+                 [:zcall, [:@ident, "d", [1, 42]]]]]],
+              :+,
+              [:var_ref, [:@ident, "rest", [1, 47]]]]]]],
+          [:zcall, [:@ident, "a", [1, 55]]]]]
+      input_tree.should transform_to output_tree
+    end
+  
     it 'should transform respecting subassignments in block arguments' do
       input_tree =
         [:program,

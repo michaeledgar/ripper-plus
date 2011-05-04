@@ -130,6 +130,15 @@ module RipperPlus
             transform_tree(body, scope_stack)
           end
         end
+      when :lambda
+        block_args, block_body = tree[1..2]
+        scope_stack.with_open_scope do
+          transform_params(block_args[1], scope_stack)
+          if block_args[2]
+            block_args[2].each { |var| add_variables_from_node(var, scope_stack) }
+          end
+          transform_tree(block_body, scope_stack)
+        end
       when :rescue
         list, name, body = tree[1..3]
         transform_tree(list, scope_stack)
