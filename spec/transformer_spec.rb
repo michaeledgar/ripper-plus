@@ -623,6 +623,98 @@ describe RipperPlus::Transformer do
                [:args_add_block, [[:zcall, [:@ident, "err", [1, 78]]]], false]]]]]]]]
       input_tree.should transform_to output_tree
     end
+    
+    it 'finds local variables created by named captures' do
+      input_tree =
+        [:program,
+         [[:def,
+           [:@ident, "foo", [1, 4]],
+           [:paren, [:params, [[:@ident, "a", [1, 8]]], nil, nil, nil, nil]],
+           [:bodystmt,
+            [[:void_stmt],
+             [:binary,
+              [:regexp_literal,
+               [[:@tstring_content, "name: (?<name>w+)", [1, 13]]],
+               [:@regexp_end, "/", [1, 30]]],
+              :=~,
+              [:var_ref, [:@ident, "a", [1, 35]]]],
+             [:command,
+              [:@ident, "p", [1, 38]],
+              [:args_add_block, [[:var_ref, [:@ident, "name", [1, 40]]]], false]],
+             [:var_ref, [:@ident, "named", [1, 46]]]],
+            nil,
+            nil,
+            nil]]]]
+      output_tree =
+        [:program,
+         [[:def,
+           [:@ident, "foo", [1, 4]],
+           [:paren, [:params, [[:@ident, "a", [1, 8]]], nil, nil, nil, nil]],
+           [:bodystmt,
+            [[:void_stmt],
+             [:binary,
+              [:regexp_literal,
+               [[:@tstring_content, "name: (?<name>w+)", [1, 13]]],
+               [:@regexp_end, "/", [1, 30]]],
+              :=~,
+              [:var_ref, [:@ident, "a", [1, 35]]]],
+             [:command,
+              [:@ident, "p", [1, 38]],
+              [:args_add_block, [[:var_ref, [:@ident, "name", [1, 40]]]], false]],
+             [:zcall, [:@ident, "named", [1, 46]]]],
+            nil,
+            nil,
+            nil]]]]
+      input_tree.should transform_to output_tree
+    end
+    
+    it 'finds local variables created by named captures in a paren LHS' do
+      input_tree =
+        [:program,
+         [[:def,
+           [:@ident, "abc", [1, 4]],
+           [:paren, [:params, [[:@ident, "a", [1, 8]]], nil, nil, nil, nil]],
+           [:bodystmt,
+            [[:void_stmt],
+             [:binary,
+              [:paren,
+               [[:var_ref, [:@ident, "foo", [1, 13]]],
+                [:var_ref, [:@ident, "bar", [1, 18]]],
+                [:regexp_literal,
+                 [[:@tstring_content, "name: (?<name>w+) (?<numba>d+)", [1, 24]]],
+                 [:@regexp_end, "/", [1, 54]]]]],
+              :=~,
+              [:var_ref, [:@ident, "a", [1, 60]]]],
+             [:var_ref, [:@ident, "name", [1, 63]]],
+             [:var_ref, [:@ident, "numba", [1, 69]]],
+             [:var_ref, [:@ident, "number", [1, 76]]]],
+            nil,
+            nil,
+            nil]]]]
+      output_tree =
+        [:program,
+         [[:def,
+           [:@ident, "abc", [1, 4]],
+           [:paren, [:params, [[:@ident, "a", [1, 8]]], nil, nil, nil, nil]],
+           [:bodystmt,
+            [[:void_stmt],
+             [:binary,
+              [:paren,
+               [[:zcall, [:@ident, "foo", [1, 13]]],
+                [:zcall, [:@ident, "bar", [1, 18]]],
+                [:regexp_literal,
+                 [[:@tstring_content, "name: (?<name>w+) (?<numba>d+)", [1, 24]]],
+                 [:@regexp_end, "/", [1, 54]]]]],
+              :=~,
+              [:var_ref, [:@ident, "a", [1, 60]]]],
+             [:var_ref, [:@ident, "name", [1, 63]]],
+             [:var_ref, [:@ident, "numba", [1, 69]]],
+             [:zcall, [:@ident, "number", [1, 76]]]],
+            nil,
+            nil,
+            nil]]]]
+      input_tree.should transform_to output_tree
+    end
   end
   describe 'error transformation' do
     it 'should push up module name errors' do

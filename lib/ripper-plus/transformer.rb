@@ -151,6 +151,23 @@ module RipperPlus
             transform_tree(body, scope_stack)
           end
         end
+      when :binary
+        # must check for named groups in a literal match. wowzerz.
+        lhs, op, rhs = tree[1..3]
+        if op == :=~
+          if lhs[0] == :regexp_literal
+            add_locals_from_regexp(lhs, scope_stack)
+            transform_tree(rhs, scope_stack)
+          elsif lhs[0] == :paren && !lhs[1].empty? && lhs[1] != [[:void_stmt]] && lhs[1].last[0] == :regexp_literal
+            lhs[1][0..-2].each { |node| transform_tree(node, scope_stack) }
+            add_locals_from_regexp(lhs[1].last, scope_stack)
+            transform_tree(rhs, scope_stack)
+          else
+            transform_in_order(tree, scope_stack)
+          end
+        else
+          transform_in_order(tree, scope_stack)
+        end
       when :if_mod, :unless_mod, :while_mod, :until_mod, :rescue_mod
         # The AST is the reverse of the parse order for these nodes.
         transform_tree(tree[2], scope_stack)
@@ -168,6 +185,15 @@ module RipperPlus
       wrap_node_with_error(tree)
     else
       transform_tree(body, scope_stack)
+    end
+
+    def add_locals_from_regexp(regexp, scope_stack)
+      regexp_parts = regexp[1]
+      if regexp_parts.one? && regexp_parts[0][0] == :@tstring_content
+        regexp_text = regexp_parts[0][1]
+        captures = Regexp.new(regexp_text).names
+        captures.each { |var_name| scope_stack.add_variable(var_name) }
+      end
     end
 
     def add_variable_list(list, scope_stack, allow_duplicates=true)

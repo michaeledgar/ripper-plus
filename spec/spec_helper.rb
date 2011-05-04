@@ -28,5 +28,6 @@ def dfs_for_node_type(tree, type)
 end
 
 RSpec.configure do |config|
-  
+  config.filter_run focus: true
+  config.run_all_when_everything_filtered = true
 end
