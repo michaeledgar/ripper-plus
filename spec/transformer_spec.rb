@@ -526,6 +526,36 @@ describe RipperPlus::Transformer do
       input_tree.should transform_to output_tree
     end
   
+    it 'does not blow up due to the lack of a rescue list' do
+      input_tree =
+        [:program,
+         [[:def,
+           [:@ident, "foo", [1, 4]],
+           [:params, nil, nil, nil, nil, nil],
+           [:bodystmt,
+            [[:method_add_arg,
+              [:fcall, [:@ident, "p", [1, 9]]],
+              [:arg_paren,
+               [:args_add_block, [[:var_ref, [:@gvar, "$.", [1, 11]]]], false]]]],
+            [:rescue, nil, nil, [[:void_stmt]], nil],
+            nil,
+            nil]]]]
+      output_tree =
+        [:program,
+         [[:def,
+           [:@ident, "foo", [1, 4]],
+           [:params, nil, nil, nil, nil, nil],
+           [:bodystmt,
+            [[:method_add_arg,
+              [:fcall, [:@ident, "p", [1, 9]]],
+              [:arg_paren,
+               [:args_add_block, [[:var_ref, [:@gvar, "$.", [1, 11]]]], false]]]],
+            [:rescue, nil, nil, [[:void_stmt]], nil],
+            nil,
+            nil]]]]
+      input_tree.should transform_to output_tree
+    end
+  
     it 'observes the creation of local variables by rescue clauses' do
       input_tree =
         [:program,

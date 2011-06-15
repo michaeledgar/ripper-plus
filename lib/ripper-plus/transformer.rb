@@ -126,7 +126,7 @@ module RipperPlus
           end
         when :rescue
           list, name, body = tree[1..3]
-          transform_tree(list, scope_stack)
+          transform_tree(list, scope_stack) if list
           # Don't forget the rescue argument!
           if name
             add_variables_from_node(name, scope_stack)
