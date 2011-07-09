@@ -1,8 +1,8 @@
 require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 
 describe RipperPlus::Transformer do
-  describe 'zcall detection' do
-    it 'should transform a simple zcall in a method' do
+  describe 'vcall detection' do
+    it 'should transform a simple vcall in a method' do
       input_tree =
         [:program,
          [[:def,
@@ -22,7 +22,7 @@ describe RipperPlus::Transformer do
            [:paren, [:params, [[:@ident, "x", [1, 8]]], nil, nil, nil, nil]],
            [:bodystmt,
             [[:void_stmt],
-             [:zcall, [:@ident, "y", [1, 12]]],
+             [:vcall, [:@ident, "y", [1, 12]]],
              [:assign,
               [:var_field, [:@ident, "y", [1, 15]]],
               [:var_ref, [:@ident, "x", [1, 19]]]]],
@@ -51,7 +51,7 @@ describe RipperPlus::Transformer do
            [:paren,
             [:params,
              [[:@ident, "x", [1, 8]]],
-             [[[:@ident, "y", [1, 11]], [:zcall, [:@ident, "z", [1, 13]]]],
+             [[[:@ident, "y", [1, 11]], [:vcall, [:@ident, "z", [1, 13]]]],
               [[:@ident, "z", [1, 16]], [:var_ref, [:@ident, "y", [1, 18]]]]],
              nil,
              nil,
@@ -93,7 +93,7 @@ describe RipperPlus::Transformer do
              [:params,
               [[:@ident, "x", [1, 10]]],
               [[[:@ident, "y", [1, 13]], [:var_ref, [:@ident, "x", [1, 15]]]],
-               [[:@ident, "z", [1, 18]], [:zcall, [:@ident, "a", [1, 20]]]]],
+               [[:@ident, "z", [1, 18]], [:vcall, [:@ident, "a", [1, 20]]]]],
               [:rest_param, [:@ident, "a", [1, 24]]],
               nil,
               nil],
@@ -122,7 +122,7 @@ describe RipperPlus::Transformer do
       output_tree =
         [:program,
          [[:defs,
-           [:zcall, [:@ident, "foo", [1, 4]]],
+           [:vcall, [:@ident, "foo", [1, 4]]],
            [:@period, ".", [1, 7]],
            [:@ident, "silly", [1, 8]],
            [:paren, [:params, nil, nil, nil, nil, nil]],
@@ -188,7 +188,7 @@ describe RipperPlus::Transformer do
             [:arg_paren,
              [:args_add_block,
               [[:var_ref, [:@ident, "a", [1, 30]]],
-               [:zcall, [:@ident, "c", [1, 33]]],
+               [:vcall, [:@ident, "c", [1, 33]]],
                [:var_ref, [:@ident, "d", [1, 36]]]],
               false]]]]]]
       input_tree.should transform_to(output_tree)
@@ -241,8 +241,8 @@ describe RipperPlus::Transformer do
                [:var_ref, [:@ident, "c", [1, 36]]],
                [:var_ref, [:@ident, "d", [1, 39]]],
                [:var_ref, [:@ident, "e", [1, 42]]],
-               [:zcall, [:@ident, "f", [1, 45]]],
-               [:zcall, [:@ident, "g", [1, 48]]]],
+               [:vcall, [:@ident, "f", [1, 45]]],
+               [:vcall, [:@ident, "g", [1, 48]]]],
               false]]],
            [[:void_stmt]]]]]
       input_tree.should transform_to(output_tree)
@@ -286,7 +286,7 @@ describe RipperPlus::Transformer do
              [:params,
               [[:@ident, "a", [1, 7]]],
               [[[:@ident, "b", [1, 10]], [:var_ref, [:@ident, "a", [1, 12]]]],
-               [[:@ident, "c", [1, 15]], [:zcall, [:@ident, "d", [1, 17]]]]],
+               [[:@ident, "c", [1, 15]], [:vcall, [:@ident, "d", [1, 17]]]]],
               [:rest_param, [:@ident, "rest", [1, 21]]],
               nil,
               nil]],
@@ -301,10 +301,10 @@ describe RipperPlus::Transformer do
                   :*,
                   [:var_ref, [:@ident, "c", [1, 38]]]],
                  :*,
-                 [:zcall, [:@ident, "d", [1, 42]]]]]],
+                 [:vcall, [:@ident, "d", [1, 42]]]]]],
               :+,
               [:var_ref, [:@ident, "rest", [1, 47]]]]]]],
-          [:zcall, [:@ident, "a", [1, 55]]]]]
+          [:vcall, [:@ident, "a", [1, 55]]]]]
       input_tree.should transform_to output_tree
     end
   
@@ -360,7 +360,7 @@ describe RipperPlus::Transformer do
                 [[:mlhs_paren, [:@ident, "z", [1, 26]]],
                  [:mlhs_paren, [:@ident, "a", [1, 29]]]]]],
               [[[:@ident, "k", [1, 33]], [:var_ref, [:@ident, "z", [1, 37]]]],
-               [[:@ident, "j", [1, 40]], [:zcall, [:@ident, "d", [1, 44]]]]],
+               [[:@ident, "j", [1, 40]], [:vcall, [:@ident, "d", [1, 44]]]]],
               [:rest_param, [:@ident, "r", [1, 48]]],
               nil,
               [:blockarg, [:@ident, "blk", [1, 52]]]],
@@ -377,7 +377,7 @@ describe RipperPlus::Transformer do
                 [:var_ref, [:@ident, "r", [1, 84]]],
                 [:var_ref, [:@ident, "blk", [1, 87]]],
                 [:var_ref, [:@ident, "local", [1, 92]]],
-                [:zcall, [:@ident, "foo", [1, 99]]]],
+                [:vcall, [:@ident, "foo", [1, 99]]]],
                false]]]]]]]
       input_tree.should transform_to(output_tree)  
     end
@@ -411,8 +411,8 @@ describe RipperPlus::Transformer do
              [:var_ref, [:@ident, "y", [1, 28]]],
              [:var_ref, [:@ident, "z", [1, 30]]]]]],
           [:var_ref, [:@ident, "x", [1, 36]]],
-          [:zcall, [:@ident, "y", [1, 39]]],
-          [:zcall, [:@ident, "z", [1, 42]]]]]
+          [:vcall, [:@ident, "y", [1, 39]]],
+          [:vcall, [:@ident, "z", [1, 42]]]]]
       input_tree.should transform_to(output_tree)
     end
   
@@ -431,7 +431,7 @@ describe RipperPlus::Transformer do
           [:class,
            [:const_ref, [:@const, "Foo", [1, 13]]],
            nil,
-           [:bodystmt, [[:zcall, [:@ident, "x", [1, 18]]]], nil, nil, nil]],
+           [:bodystmt, [[:vcall, [:@ident, "x", [1, 18]]]], nil, nil, nil]],
           [:var_ref, [:@ident, "x", [1, 26]]]]]
       input_tree.should transform_to(output_tree)
     end
@@ -454,7 +454,7 @@ describe RipperPlus::Transformer do
           [:class,
            [:const_ref, [:@const, "A", [1, 18]]],
            [:var_ref, [:@ident, "x", [1, 22]]],
-           [:bodystmt, [[:zcall, [:@ident, "x", [1, 25]]]], nil, nil, nil]]]]
+           [:bodystmt, [[:vcall, [:@ident, "x", [1, 25]]]], nil, nil, nil]]]]
       input_tree.should transform_to output_tree
     end
   
@@ -476,7 +476,7 @@ describe RipperPlus::Transformer do
           [:module,
            [:const_ref, [:@const, "Foo", [1, 14]]],
            [:bodystmt,
-            [[:void_stmt], [:zcall, [:@ident, "x", [1, 19]]]],
+            [[:void_stmt], [:vcall, [:@ident, "x", [1, 19]]]],
             nil,
             nil,
             nil]],
@@ -496,7 +496,7 @@ describe RipperPlus::Transformer do
          [[:assign, [:var_field, [:@ident, "x", [1, 0]]], [:@int, "5", [1, 4]]],
           [:sclass,
            [:var_ref, [:@const, "String", [1, 16]]],
-           [:bodystmt, [[:zcall, [:@ident, "x", [1, 24]]]], nil, nil, nil]]]]
+           [:bodystmt, [[:vcall, [:@ident, "x", [1, 24]]]], nil, nil, nil]]]]
       input_tree.should transform_to output_tree
     end
   
@@ -512,7 +512,7 @@ describe RipperPlus::Transformer do
       input_tree.should transform_to input_tree
     end
   
-    it 'refers to the enclosing environment to determine the singleton to open - resulting in zcall' do
+    it 'refers to the enclosing environment to determine the singleton to open - resulting in vcall' do
       input_tree =
         [:program,
          [[:sclass,
@@ -521,7 +521,7 @@ describe RipperPlus::Transformer do
       output_tree =
         [:program,
          [[:sclass,
-           [:zcall, [:@ident, "x", [1, 19]]],
+           [:vcall, [:@ident, "x", [1, 19]]],
            [:bodystmt, [[:void_stmt]], nil, nil, nil]]]]
       input_tree.should transform_to output_tree
     end
@@ -639,18 +639,18 @@ describe RipperPlus::Transformer do
              nil,
              [[:command,
                [:@ident, "p", [1, 48]],
-               [:args_add_block, [[:zcall, [:@ident, "err", [1, 50]]]], false]]],
+               [:args_add_block, [[:vcall, [:@ident, "err", [1, 50]]]], false]]],
              nil],
             [:else,
              [[:void_stmt],
               [:command,
                [:@ident, "p", [1, 61]],
-               [:args_add_block, [[:zcall, [:@ident, "err", [1, 63]]]], false]]]],
+               [:args_add_block, [[:vcall, [:@ident, "err", [1, 63]]]], false]]]],
             [:ensure,
              [[:void_stmt],
               [:command,
                [:@ident, "p", [1, 76]],
-               [:args_add_block, [[:zcall, [:@ident, "err", [1, 78]]]], false]]]]]]]]
+               [:args_add_block, [[:vcall, [:@ident, "err", [1, 78]]]], false]]]]]]]]
       input_tree.should transform_to output_tree
     end
     
@@ -691,7 +691,7 @@ describe RipperPlus::Transformer do
              [:command,
               [:@ident, "p", [1, 38]],
               [:args_add_block, [[:var_ref, [:@ident, "name", [1, 40]]]], false]],
-             [:zcall, [:@ident, "named", [1, 46]]]],
+             [:vcall, [:@ident, "named", [1, 46]]]],
             nil,
             nil,
             nil]]]]
@@ -730,8 +730,8 @@ describe RipperPlus::Transformer do
             [[:void_stmt],
              [:binary,
               [:paren,
-               [[:zcall, [:@ident, "foo", [1, 13]]],
-                [:zcall, [:@ident, "bar", [1, 18]]],
+               [[:vcall, [:@ident, "foo", [1, 13]]],
+                [:vcall, [:@ident, "bar", [1, 18]]],
                 [:regexp_literal,
                  [[:@tstring_content, "name: (?<name>w+) (?<numba>d+)", [1, 24]]],
                  [:@regexp_end, "/", [1, 54]]]]],
@@ -739,7 +739,7 @@ describe RipperPlus::Transformer do
               [:var_ref, [:@ident, "a", [1, 60]]]],
              [:var_ref, [:@ident, "name", [1, 63]]],
              [:var_ref, [:@ident, "numba", [1, 69]]],
-             [:zcall, [:@ident, "number", [1, 76]]]],
+             [:vcall, [:@ident, "number", [1, 76]]]],
             nil,
             nil,
             nil]]]]

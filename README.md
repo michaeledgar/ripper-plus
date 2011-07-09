@@ -91,7 +91,7 @@ Need to be properly resolved. Did you know that, unlike the `label = label` exam
 
 Why doesn't y end up `nil` in the default case, as it would if you typed `y = y` into a method definition?
 
-Anyway, ripper-plus turns all method-call `:var_ref` nodes into `:zcall` nodes; the node structure is otherwise unchanged. I believe Ripper should already make this distinction, and it can relatively simply: it simply has to re-implement the existing scope-tracking behavior to the relevant Ripper action routines. Not trivial, but `ripper-plus` does it in a couple hundred lines of Ruby.
+Anyway, ripper-plus turns all method-call `:var_ref` nodes into `:vcall` nodes; the node structure is otherwise unchanged. I believe Ripper should already make this distinction, and it can relatively simply: it simply has to re-implement the existing scope-tracking behavior to the relevant Ripper action routines. Not trivial, but `ripper-plus` does it in a couple hundred lines of Ruby.
 
 # Error Handling
 

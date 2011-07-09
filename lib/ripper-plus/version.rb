@@ -1,8 +1,8 @@
 module RipperPlus
   module Version
     MAJOR = 1
-    MINOR = 2
-    PATCH = 2
+    MINOR = 3
+    PATCH = 0
     BUILD = ''
 
     if BUILD.empty?

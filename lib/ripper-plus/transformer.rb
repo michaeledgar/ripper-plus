@@ -7,7 +7,7 @@ module RipperPlus
   class DuplicateArgumentError < SyntaxError; end
   # Transforms a 1.9.2 Ripper AST into a RipperPlus AST. The only
   # change as a result of this transformation is that the nodes for
-  # local variable references and zcalls (bareword calls to self)
+  # local variable references and vcalls (bareword calls to self)
   # have different node types:
   #
   #    def foo(x)
@@ -21,7 +21,7 @@ module RipperPlus
   #   [:@ident, "foo", [1, 4]],
   #   [:paren, [:params, [[:@ident, "x", [1, 8]]], nil, nil, nil, nil]],
   #   [:bodystmt,
-  #    [[:zcall, [:@ident, "y", [2, 2]]],
+  #    [[:vcall, [:@ident, "y", [2, 2]]],
   #     [:assign,
   #      [:var_field, [:@ident, "y", [3, 2]]],
   #      [:var_ref, [:@ident, "x", [3, 6]]]]],
@@ -77,9 +77,9 @@ module RipperPlus
           transform_tree(body, scope_stack)
         when :var_ref
           # When we reach a :var_ref, we should know everything we need to know
-          # in order to tell if it should be transformed into a :zcall.
+          # in order to tell if it should be transformed into a :vcall.
           if tree[1][0] == :@ident && !scope_stack.has_variable?(tree[1][1])
-            tree[0] = :zcall
+            tree[0] = :vcall
           end
         when :class
           name, superclass, body = tree[1..3]
